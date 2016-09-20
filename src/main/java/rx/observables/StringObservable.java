@@ -431,7 +431,12 @@ public class StringObservable {
                             String part = parts[i];
                             output(part);
                         }
-                        leftOver = parts[parts.length - 1];
+                        String last = parts[parts.length - 1];
+                        leftOver = last;
+                        if(last != null && !last.isEmpty()) {
+                            //we have leftOver so we must request at least one missing part
+                            this.request(1);
+                        }
                     }
 
                     private int emptyPartCount = 0;
