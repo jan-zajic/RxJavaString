@@ -164,6 +164,24 @@ public class StringObservableTest {
         }
     }
 
+    @Test
+    public void testSplitWithBackpressure() {
+        Observable<String> underTest = StringObservable.split(Observable.just("a", "b", "c", ":", "d"), ":");
+
+        // request just the first event
+        TestSubscriber<String> subscriber = TestSubscriber.create(1);
+        underTest.subscribe(subscriber);
+        subscriber.assertNoTerminalEvent(); // we expect one more event
+        subscriber.assertNoErrors();
+        subscriber.assertValue("abc");
+
+        // request the next (and last) event
+        subscriber.requestMore(1);
+        subscriber.assertTerminalEvent();
+        subscriber.assertNoErrors();
+        subscriber.assertValues("abc", "d");
+    }
+
     public void testSplit(String str, String regex, int limit, String... parts) {
         testSplit(str, regex, 0, Observable.just(str), parts);
         for (int i = 0; i < str.length(); i++) {
