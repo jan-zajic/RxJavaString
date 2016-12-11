@@ -523,4 +523,107 @@ public class StringObservableTest {
         ts.assertValues("a,b,c");
         ts.assertCompleted();
     }
+    
+    @Test
+    public void testSplitWithBackpressureSimple() {
+        Observable<String> underTest = StringObservable.split(Observable.just("a", "b", "c", ":", "d"), ":");
+        
+        // request just the first event
+        TestSubscriber<String> subscriber = TestSubscriber.create(1);
+        underTest.subscribe(subscriber);
+        subscriber.assertNoTerminalEvent(); // we expect one more event
+        subscriber.assertNoErrors();
+        subscriber.assertValue("abc");
+        
+        // request the next (and last) event
+        subscriber.requestMore(1);
+        subscriber.assertTerminalEvent();
+        subscriber.assertNoErrors();
+        subscriber.assertValues("abc", "d");
+    }
+  
+    @Test
+    public void testSplitWithBackpressureTwoParts() {
+        Observable<String> underTest = StringObservable.split(Observable.just("abc:de"), ":");
+
+        // request just the first event
+        TestSubscriber<String> subscriber = TestSubscriber.create(1);
+        underTest.subscribe(subscriber);
+        subscriber.assertNoTerminalEvent(); // we expect one more event
+        subscriber.assertNoErrors();
+        subscriber.assertValue("abc");
+
+        // request the next (and last) event
+        subscriber.requestMore(1);
+        subscriber.assertTerminalEvent();
+        subscriber.assertNoErrors();
+        subscriber.assertValues("abc", "de");
+    }
+    
+    @Test
+    public void testSplitWithBackpressureThreeParts() {
+        Observable<String> underTest = StringObservable.split(Observable.just("abc:de:ff"), ":");
+
+        // request just the first event
+        TestSubscriber<String> subscriber = TestSubscriber.create(1);
+        underTest.subscribe(subscriber);
+        subscriber.assertNoTerminalEvent(); // we expect one more event
+        subscriber.assertNoErrors();
+        subscriber.assertValue("abc");
+
+        // request the next event
+        subscriber.requestMore(1);
+        subscriber.assertNoTerminalEvent();
+        subscriber.assertNoErrors();
+        subscriber.assertValues("abc", "de");
+        
+        // request the next (and last) event
+        subscriber.requestMore(1);
+        subscriber.assertTerminalEvent();
+        subscriber.assertNoErrors();
+        subscriber.assertValues("abc", "de", "ff");
+    }
+    
+    @Test
+    public void testSplitWithBackpressureOverlap() {
+        Observable<String> underTest = StringObservable.split(Observable.just("abc", ":de"), ":");
+
+        // request just the first event
+        TestSubscriber<String> subscriber = TestSubscriber.create(1);
+        underTest.subscribe(subscriber);
+        subscriber.assertNoTerminalEvent(); // we expect one more event
+        subscriber.assertNoErrors();
+        subscriber.assertValue("abc");
+
+        // request the next (and last) event
+        subscriber.requestMore(1);
+        subscriber.assertTerminalEvent();
+        subscriber.assertNoErrors();
+        subscriber.assertValues("abc", "de");
+    }
+
+    @Test
+    public void testSplitOnTooManyEmpty() {
+        String[] expected = new String[130];
+        Arrays.fill(expected, "");
+        expected[129] = "a";
+        testSplit(
+                ":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::a",
+                ":", 0, expected);
+    }
+
+    @Test
+    public void testSplitOnTooMany() {
+        String[] expected = new String[130];
+        Arrays.fill(expected, "a");
+        testSplit(
+                "a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a:a",
+                ":", 0, expected);
+    }
+
+    @Test
+    public void testSplitOnTooFew() {
+        testSplit("message", ":", 0, Observable.just("", "", "", "asdf"), "asdf");
+    }
+
 }
