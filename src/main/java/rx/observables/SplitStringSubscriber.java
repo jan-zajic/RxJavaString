@@ -26,11 +26,6 @@ class SplitStringSubscriber extends Subscriber<String> implements BackpressureDr
     }
 
     @Override
-    public void onStart() {
-        request(Long.MAX_VALUE);
-    }
-
-    @Override
     public void onCompleted() {
         if (leftOver != null)
             output(leftOver);
@@ -51,7 +46,8 @@ class SplitStringSubscriber extends Subscriber<String> implements BackpressureDr
         String[] parts = pattern.split(segment, -1);        
         for (int i = 0; i < parts.length - 1; i++) {
             String part = parts[i];
-            output(part);
+            if(!output(part))
+                break;
         }
         String last = parts[parts.length - 1];
         leftOver = last;
@@ -65,16 +61,23 @@ class SplitStringSubscriber extends Subscriber<String> implements BackpressureDr
      * when limit == 0 trailing empty parts are not emitted.
      * 
      * @param part
+     * @return true if part emitted to queue, false otherwise 
      */
-    private void output(String part) {
+    private boolean output(String part) {
         if (part.isEmpty()) {
             emptyPartCount++;
+            return true;
         } else {
             for (; emptyPartCount > 0; emptyPartCount--)
                 if (!child.isUnsubscribed())
                     addNext("");
+                else
+                    return false;
             if (!child.isUnsubscribed())
                 addNext(part);
+            else
+                return false;
+            return true;
         }
     }
 
